@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 typedef enum
@@ -15,7 +16,7 @@ typedef enum
 
 void print_commands()
 {
-    char tab[] = "  ";
+    const char tab[] = "  ";
     printf("%sdate\t\t{data_inizio} {data_fine}\n", tab);
     printf("%spartenza\t{fermata}\n", tab);
     printf("%scapolinea\t{fermata}\n", tab);
@@ -43,7 +44,41 @@ comando_e read_command(char *str)
     return r_none;
 }
 
-void selezionaDati(comando_e cmd)
+void print_date(FILE *fp, int rows, char *fromDate, char *toDate)
+{
+    char str[61], date[11];
+
+    for (int i = 0; i < rows; i++)
+    {
+        fgets(str, 60, fp);
+        if (sscanf(str, "%*s %*s %*s %10s %*s %*s %*d", date))
+        {
+            if (strcmp(date, fromDate) > 0 && strcmp(date, toDate) < 0)
+            {
+                printf("%s\n", str);
+            }
+        }
+    }
+    printf("\n");
+}
+
+void print_partenza(FILE *fp)
+{
+}
+
+void print_capolinea(FILE *fp)
+{
+}
+
+void print_ritardo(FILE *fp)
+{
+}
+
+void print_ritardo_tot(FILE *fp)
+{
+}
+
+void selezionaDati(FILE *fp, int rows, comando_e cmd)
 {
     switch (cmd)
     {
@@ -54,31 +89,57 @@ void selezionaDati(comando_e cmd)
         print_commands();
         return;
     case r_date:
+        print_date(fp, rows, "2017/10/04", "2020/10/27");
         return;
     case r_partenza:
+        print_partenza(fp);
         return;
     case r_capolinea:
+        print_capolinea(fp);
         return;
     case r_ritardo:
+        print_ritardo(fp);
         return;
     case r_ritardo_tot:
+        print_ritardo_tot(fp);
         return;
     case r_fine:
+        exit(0);
         return;
     }
 }
 
-int main(int argc, int *argv[])
+void discard_line(FILE *fp)
 {
+    int c;
+    while ((c = fgetc(fp)) != EOF && c != '\n')
+        ;
+}
+
+int main(int argc, char *argv[])
+{
+    FILE *fp = fopen("corse.txt", "r");
+    if (fp == NULL)
+    {
+        printf("Could not open file.");
+        return 1;
+    }
+
+    int rowCount;
+    fscanf(fp, "%d", &rowCount);
+
     printf("Inserisci un comando o \"aiuto\" per vedere tutti i comandi.\n");
 
     while (1)
     {
-        char str[20];
+        char str[31];
         scanf("%s", str);
 
+        rewind(fp);
+        discard_line(fp);
+
         comando_e cmd = read_command(str);
-        selezionaDati(cmd);
+        selezionaDati(fp, rowCount, cmd);
     }
 
     return 0;
