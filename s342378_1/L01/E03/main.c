@@ -64,6 +64,10 @@ comando_e read_command(char *str)
         return r_sort_partenza;
     if (are_equal(str, "sort_arrivo"))
         return r_sort_arrivo;
+    if (are_equal(str, "cerca_tratta"))
+        return r_cerca_tratta;
+    if (are_equal(str, "cerca_partenza"))
+        return r_cerca_partenza;
     if (are_equal(str, "fine"))
         return r_fine;
     return r_none;
