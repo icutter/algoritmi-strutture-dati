@@ -17,11 +17,11 @@ typedef enum
 void print_commands()
 {
     const char tab[] = "  ";
-    printf("%sdate\t\t{data_inizio} {data_fine}\n", tab);
-    printf("%spartenza\t{fermata}\n", tab);
-    printf("%scapolinea\t{fermata}\n", tab);
-    printf("%sritardo\t{data_inizio} {data_fine}\n", tab);
-    printf("%sritardo_tot\t{tratta}\n", tab);
+    printf("%sdate\t\t<data_inizio> <data_fine>\n", tab);
+    printf("%spartenza\t<fermata>\n", tab);
+    printf("%scapolinea\t<fermata>\n", tab);
+    printf("%sritardo\t<data_inizio> <data_fine>\n", tab);
+    printf("%sritardo_tot\t<tratta>\n", tab);
     printf("%sfine\n\n", tab);
 }
 

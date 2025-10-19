@@ -32,14 +32,14 @@ typedef struct
 void print_commands()
 {
     const char tab[] = "  ";
-    printf("%sapri_file\t\t{percorso}\n", tab);
-    printf("%sstampa_corse\t\t{percorso}\n", tab);
+    printf("%sapri_file\t\t<percorso>\n", tab);
+    printf("%sstampa_corse\t\t<percorso>\n", tab);
     printf("%ssort_data\n", tab);
     printf("%ssort_tratta\n", tab);
     printf("%ssort_partenza\n", tab);
     printf("%ssort_arrivo\n", tab);
-    printf("%scerca_tratta\t\t{nome_tratta}\n", tab);
-    printf("%scerca_partenza\t{nome_partenza}\n", tab);
+    printf("%scerca_tratta\t\t<nome_tratta>\n", tab);
+    printf("%scerca_partenza\t<nome_partenza>\n", tab);
     printf("%sfine\n\n", tab);
 }
 
@@ -162,7 +162,7 @@ void write_corse_to_file(corsa *db, int n, char *path)
     FILE *fp = fopen(path, "w+");
     if (fp == NULL)
     {
-        printf("Could not open or create file.");
+        printf("Could not open or create file.\n");
         exit(1);
     }
 
@@ -170,7 +170,7 @@ void write_corse_to_file(corsa *db, int n, char *path)
 
     for (int i = 0; i < n; i++)
     {
-        print_corsa_to_file(fp, db);
+        print_corsa_to_file(fp, &db[i]);
     }
 
     fclose(fp);
@@ -183,7 +183,7 @@ void write_corse_to_file(corsa *db, int n, char *path)
 int comp_data(corsa a, corsa b)
 {
     int date_comparison = strcmp(a.data, b.data);
-    return date_comparison != 0 ? date_comparison : strcmp(a.partenza, b.partenza);
+    return date_comparison != 0 ? date_comparison : -strcmp(a.partenza, b.partenza);
 }
 
 int comp_tratta(corsa a, corsa b)
@@ -252,6 +252,12 @@ void cerca_partenza(corsa *db, int *n, char *str)
 
 void seleziona_dati(corsa **db, int *n, comando_e cmd, char *cmdstr)
 {
+    if (*db == NULL && cmd != r_apri_file && cmd != r_aiuto && cmd != r_fine)
+    {
+        printf("Nessun file aperto. Usa 'apri_file <percorso>'.\n");
+        return;
+    }
+
     char args[2][21];
 
     switch (cmd)
@@ -300,13 +306,12 @@ void seleziona_dati(corsa **db, int *n, comando_e cmd, char *cmdstr)
         return;
     case r_fine:
         exit(0);
-        return;
     }
 }
 
 int main(int argc, char *argv[])
 {
-    corsa *db;
+    corsa *db = NULL;
     int dbcount = 0;
 
     printf("Inserisci un comando o \"aiuto\" per vedere tutti i comandi.\n");
