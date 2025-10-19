@@ -8,11 +8,13 @@ typedef enum
     r_none,
     r_aiuto,
     r_apri_file,
-    r_date,
-    r_partenza,
-    r_capolinea,
-    r_ritardo,
-    r_ritardo_tot,
+    r_stampa_corse,
+    r_sort_data,
+    r_sort_tratta,
+    r_sort_partenza,
+    r_sort_arrivo,
+    r_cerca_tratta,
+    r_cerca_partenza,
     r_fine
 } comando_e;
 
@@ -30,12 +32,14 @@ typedef struct
 void print_commands()
 {
     const char tab[] = "  ";
-    printf("%sapri_file\t{percorso}\n", tab);
-    printf("%sdate\t\t{data_inizio} {data_fine}\n", tab);
-    printf("%spartenza\t{fermata}\n", tab);
-    printf("%scapolinea\t{fermata}\n", tab);
-    printf("%sritardo\t{data_inizio} {data_fine}\n", tab);
-    printf("%sritardo_tot\t{tratta}\n", tab);
+    printf("%sapri_file\t\t{percorso}\n", tab);
+    printf("%sstampa_corse\t\t{percorso}\n", tab);
+    printf("%ssort_data\n", tab);
+    printf("%ssort_tratta\n", tab);
+    printf("%ssort_partenza\n", tab);
+    printf("%ssort_arrivo\n", tab);
+    printf("%scerca_tratta\t\t{nome_tratta}\n", tab);
+    printf("%scerca_partenza\t{nome_partenza}\n", tab);
     printf("%sfine\n\n", tab);
 }
 
@@ -50,16 +54,16 @@ comando_e read_command(char *str)
         return r_aiuto;
     if (are_equal(str, "apri_file"))
         return r_apri_file;
-    if (are_equal(str, "date"))
-        return r_date;
-    if (are_equal(str, "partenza"))
-        return r_partenza;
-    if (are_equal(str, "capolinea"))
-        return r_capolinea;
-    if (are_equal(str, "ritardo"))
-        return r_ritardo;
-    if (are_equal(str, "ritardo_tot"))
-        return r_ritardo_tot;
+    if (are_equal(str, "stampa_corse"))
+        return r_stampa_corse;
+    if (are_equal(str, "sort_data"))
+        return r_sort_data;
+    if (are_equal(str, "sort_tratta"))
+        return r_sort_tratta;
+    if (are_equal(str, "sort_partenza"))
+        return r_sort_partenza;
+    if (are_equal(str, "sort_arrivo"))
+        return r_sort_arrivo;
     if (are_equal(str, "fine"))
         return r_fine;
     return r_none;
@@ -98,6 +102,11 @@ void print_corsa(corsa *c)
     printf("%s %s %s %s %s %s %d\n", c->codice_tratta, c->partenza, c->destinazione, c->data, c->ora_partenza, c->ora_arrivo, c->ritardo);
 }
 
+void print_corsa_to_file(FILE *fp, corsa *c)
+{
+    fprintf(fp, "%s %s %s %s %s %s %d\n", c->codice_tratta, c->partenza, c->destinazione, c->data, c->ora_partenza, c->ora_arrivo, c->ritardo);
+}
+
 int is_range_digit(const char *str, int from, int to)
 {
     if (from > to)
@@ -118,7 +127,7 @@ int is_range_digit(const char *str, int from, int to)
 int is_yyyy_mm_dd(const char *str)
 {
     // Expect YYYY/MM/DD
-    //        0123456789
+    // Index  0123456789
 
     if (strlen(str) != 10)
         return 0;
@@ -133,83 +142,115 @@ int is_in_range(char *date, char *from, char *to)
     return strcmp(date, from) >= 0 && strcmp(date, to) <= 0;
 }
 
-void print_date(corsa *db, int n, char *fromDate, char *toDate)
+int starts_with(const char *str, const char *prefix)
 {
-    if (!is_yyyy_mm_dd(fromDate) || !is_yyyy_mm_dd(toDate))
+    size_t len_prefix = strlen(prefix);
+    size_t len_str = strlen(str);
+    return len_str >= len_prefix && strncmp(str, prefix, len_prefix) == 0;
+}
+
+void print_corse(corsa *db, int n)
+{
+    for (int i = 0; i < n; i++)
     {
-        printf("Date formatting is wrong. YYYY/MM/DD required.");
-        return;
+        print_corsa(&db[i]);
     }
+}
+
+void write_corse_to_file(corsa *db, int n, char *path)
+{
+    FILE *fp = fopen(path, "w+");
+    if (fp == NULL)
+    {
+        printf("Could not open or create file.");
+        exit(1);
+    }
+
+    fprintf(fp, "%d\n", n);
 
     for (int i = 0; i < n; i++)
     {
-        if (is_in_range(db[i].data, fromDate, toDate))
+        print_corsa_to_file(fp, db);
+    }
+
+    fclose(fp);
+}
+
+// ********************
+// Comparison functions
+// ********************
+
+int comp_data(corsa a, corsa b)
+{
+    int date_comparison = strcmp(a.data, b.data);
+    return date_comparison != 0 ? date_comparison : strcmp(a.partenza, b.partenza);
+}
+
+int comp_tratta(corsa a, corsa b)
+{
+    return strcmp(a.codice_tratta, b.codice_tratta);
+}
+
+int comp_partenza(corsa a, corsa b)
+{
+    return strcmp(a.partenza, b.partenza);
+}
+
+int comp_arrivo(corsa a, corsa b)
+{
+    return strcmp(a.destinazione, b.destinazione);
+}
+
+void sort(corsa *db, int n, int (*comp_func)(corsa a, corsa b))
+{
+    const int l = 0, r = n - 1;
+    int i, j;
+    corsa x;
+
+    for (i = l + 1; i <= r; i++)
+    {
+        x = db[i];
+        j = i - 1;
+
+        while (j >= l && comp_func(x, db[j]) < 0)
+        {
+            db[j + 1] = db[j];
+            j--;
+        }
+
+        db[j + 1] = x;
+    }
+}
+
+void cerca_tratta(corsa *db, int n, char *str)
+{
+    for (int i = 0; i < n; i++)
+    {
+        if (strcmp(db[i].codice_tratta, str) == 0)
         {
             print_corsa(&db[i]);
+            return;
         }
     }
-    printf("\n");
+    printf("Codice tratta non trovato.\n");
+    return;
 }
 
-void print_partenza(corsa *db, int n, char *fermata)
+void cerca_partenza(corsa *db, int *n, char *str)
 {
-    for (int i = 0; i < n; i++)
+    for (int i = 0; i < *n; i++)
     {
-        if (strcmp(db[i].partenza, fermata) == 0)
+        if (starts_with(db[i].partenza, str))
         {
             print_corsa(&db[i]);
+            return;
         }
     }
-    printf("\n");
+    printf("Nessuna corsa in partenza da questa fermata.\n");
+    return;
 }
 
-void print_capolinea(corsa *db, int n, char *destinazione)
-{
-    for (int i = 0; i < n; i++)
-    {
-        if (strcmp(db[i].destinazione, destinazione) == 0)
-        {
-            print_corsa(&db[i]);
-        }
-    }
-    printf("\n");
-}
-
-void print_ritardo(corsa *db, int n, char *fromDate, char *toDate)
-{
-    if (!is_yyyy_mm_dd(fromDate) || !is_yyyy_mm_dd(toDate))
-    {
-        printf("Date formatting is wrong. YYYY/MM/DD required.");
-        return;
-    }
-
-    for (int i = 0; i < n; i++)
-    {
-        if (db[i].ritardo <= 0)
-            continue;
-
-        if (is_in_range(db[i].data, fromDate, toDate))
-        {
-            print_corsa(&db[i]);
-        }
-    }
-    printf("\n");
-}
-
-void print_ritardo_tot(corsa *db, int n, char *codice_tratta)
-{
-    int ritardo_tot = 0;
-    for (int i = 0; i < n; i++)
-    {
-        if (strcmp(db[i].codice_tratta, codice_tratta) == 0)
-        {
-            ritardo_tot += db[i].ritardo;
-        }
-    }
-    printf("Ritardo totale: %d\n", ritardo_tot);
-}
-
-void selezionaDati(corsa **db, int *n, comando_e cmd, char *cmdstr)
+void seleziona_dati(corsa **db, int *n, comando_e cmd, char *cmdstr)
 {
     char args[2][21];
 
@@ -225,25 +266,37 @@ void selezionaDati(corsa **db, int *n, comando_e cmd, char *cmdstr)
         sscanf(cmdstr, "%*s %s", args[0]);
         *db = load_file(args[0], n);
         return;
-    case r_date:
-        sscanf(cmdstr, "%*s %s %s", args[0], args[1]);
-        print_date(*db, *n, args[0], args[1]);
+    case r_stampa_corse:
+        if (sscanf(cmdstr, "%*s %s", args[0]) == 1)
+        {
+            // stampa su file
+            write_corse_to_file(*db, *n, args[0]);
+        }
+        else
+        {
+            // stampa a video
+            print_corse(*db, *n);
+        }
         return;
-    case r_partenza:
+    case r_sort_data:
+        sort(*db, *n, comp_data);
+        return;
+    case r_sort_tratta:
+        sort(*db, *n, comp_tratta);
+        return;
+    case r_sort_partenza:
+        sort(*db, *n, comp_partenza);
+        return;
+    case r_sort_arrivo:
+        sort(*db, *n, comp_arrivo);
+        return;
+    case r_cerca_tratta:
         sscanf(cmdstr, "%*s %s", args[0]);
-        print_partenza(*db, *n, args[0]);
+        cerca_tratta(*db, *n, args[0]);
         return;
-    case r_capolinea:
+    case r_cerca_partenza:
         sscanf(cmdstr, "%*s %s", args[0]);
-        print_capolinea(*db, *n, args[0]);
-        return;
-    case r_ritardo:
-        sscanf(cmdstr, "%*s %s %s", args[0], args[1]);
-        print_ritardo(*db, *n, args[0], args[1]);
-        return;
-    case r_ritardo_tot:
-        sscanf(cmdstr, "%*s %s", args[0]);
-        print_ritardo_tot(*db, *n, args[0]);
+        cerca_partenza(*db, n, args[0]);
         return;
     case r_fine:
         exit(0);
@@ -267,7 +320,7 @@ int main(int argc, char *argv[])
         sscanf(inputstr, "%s", cmdstr);
 
         comando_e cmd = read_command(cmdstr);
-        selezionaDati(&db, &dbcount, cmd, inputstr);
+        seleziona_dati(&db, &dbcount, cmd, inputstr);
     }
 
     return 0;

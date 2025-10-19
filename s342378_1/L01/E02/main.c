@@ -78,7 +78,7 @@ void print_ritardo_tot(FILE *fp)
 {
 }
 
-void selezionaDati(FILE *fp, int rows, comando_e cmd)
+void seleziona_dati(FILE *fp, int rows, comando_e cmd)
 {
     switch (cmd)
     {
@@ -139,7 +139,7 @@ int main(int argc, char *argv[])
         discard_line(fp);
 
         comando_e cmd = read_command(str);
-        selezionaDati(fp, rowCount, cmd);
+        seleziona_dati(fp, rowCount, cmd);
     }
 
     return 0;
