@@ -54,6 +54,9 @@ int validate_character(const char src, const char *regexp, const int n)
             return isupper((unsigned char)src);
         }
     }
+    if (n > 2 && regexp[0] == '[')
+    {
+    }
     return src == regexp[0];
 }
 
