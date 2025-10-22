@@ -38,8 +38,8 @@ void print_commands()
     printf("%ssort_tratta\n", tab);
     printf("%ssort_partenza\n", tab);
     printf("%ssort_arrivo\n", tab);
-    printf("%scerca_tratta\t\t<nome_tratta>\n", tab);
-    printf("%scerca_partenza\t<nome_partenza>\n", tab);
+    printf("%scerca_tratta\t\t<nome_tratta> [lineare|binaria]\n", tab);
+    printf("%scerca_partenza\t<nome_partenza> [lineare|binaria]\n", tab);
     printf("%sfine\n\n", tab);
 }
 
@@ -186,8 +186,12 @@ void write_corse_to_file(corsa *db, int n, char *path)
 
 int comp_data(corsa a, corsa b)
 {
-    int date_comparison = strcmp(a.data, b.data);
-    return date_comparison != 0 ? date_comparison : -strcmp(a.partenza, b.partenza);
+    return strcmp(a.data, b.data);
+}
+
+int comp_ora_partenza(corsa a, corsa b)
+{
+    return strcmp(a.ora_partenza, b.ora_partenza);
 }
 
 int comp_tratta(corsa a, corsa b)
@@ -226,32 +230,69 @@ void sort(corsa *db, int n, int (*comp_func)(corsa a, corsa b))
     }
 }
 
-void cerca_tratta(corsa *db, int n, char *str)
+int comp_fuzzy_field(const char *field, const char *query)
+{
+    size_t len = strlen(query);
+    int cmp = strncmp(field, query, len);
+    if (cmp == 0)
+        return 0;
+    return strcmp(field, query);
+}
+
+int comp_fuzzy_codice_tratta(corsa c, char *str)
+{
+    return comp_fuzzy_field(c.codice_tratta, str);
+}
+
+int comp_fuzzy_partenza(corsa c, char *str)
+{
+    return comp_fuzzy_field(c.partenza, str);
+}
+
+void ricerca_lineare(corsa *db, int n, char *str, int (*comp_func)(corsa, char *))
 {
     for (int i = 0; i < n; i++)
     {
-        if (strcmp(db[i].codice_tratta, str) == 0)
+        if (comp_func(db[i], str) == 0)
         {
             print_corsa(&db[i]);
             return;
         }
     }
-    printf("Codice tratta non trovato.\n");
-    return;
+    printf("Elemento non trovato.\n");
 }
 
-void cerca_partenza(corsa *db, int *n, char *str)
+void ricerca_binaria(corsa *db, int n, char *str, int (*comp_func)(corsa, char *))
 {
-    for (int i = 0; i < *n; i++)
+    int l = 0, r = n - 1;
+    int found = -1;
+
+    while (l <= r)
     {
-        if (starts_with(db[i].partenza, str))
+        int m = (l + r) / 2;
+        int cmp = comp_func(db[m], str);
+
+        if (cmp == 0)
         {
-            print_corsa(&db[i]);
-            return;
+            found = m;
+            // cerca il primo elemento valido a sinistra
+            while (found > 0 && comp_func(db[found - 1], str) == 0)
+                found--;
+            break;
         }
+        else if (cmp < 0)
+            l = m + 1;
+        else
+            r = m - 1;
     }
-    printf("Nessuna corsa in partenza da questa fermata.\n");
-    return;
+
+    if (found == -1)
+    {
+        printf("Elemento non trovato.\n");
+        return;
+    }
+
+    print_corsa(&db[found]);
 }
 
 void seleziona_dati(corsa **db, int *n, comando_e cmd, char *cmdstr)
@@ -263,6 +304,7 @@ void seleziona_dati(corsa **db, int *n, comando_e cmd, char *cmdstr)
     }
 
     char args[2][21];
+    int scanned;
 
     switch (cmd)
     {
@@ -275,6 +317,7 @@ void seleziona_dati(corsa **db, int *n, comando_e cmd, char *cmdstr)
     case r_apri_file:
         sscanf(cmdstr, "%*s %s", args[0]);
         *db = load_file(args[0], n);
+        printf("Il file %s è stato caricato correttamente.\n", args[0]);
         return;
     case r_stampa_corse:
         if (sscanf(cmdstr, "%*s %s", args[0]) == 1)
@@ -289,6 +332,8 @@ void seleziona_dati(corsa **db, int *n, comando_e cmd, char *cmdstr)
         }
         return;
     case r_sort_data:
+        // Algoritmo di ordinamento stabile
+        sort(*db, *n, comp_ora_partenza);
         sort(*db, *n, comp_data);
         return;
     case r_sort_tratta:
@@ -301,12 +346,52 @@ void seleziona_dati(corsa **db, int *n, comando_e cmd, char *cmdstr)
         sort(*db, *n, comp_arrivo);
         return;
     case r_cerca_tratta:
-        sscanf(cmdstr, "%*s %s", args[0]);
-        cerca_tratta(*db, *n, args[0]);
+        scanned = sscanf(cmdstr, "%*s %s %s", args[0], args[1]);
+        sort(*db, *n, comp_tratta);
+
+        if (scanned == 0)
+        {
+            printf("Inserire almeno un argomento.\n");
+            return;
+        }
+
+        if (scanned == 2 && strcmp(args[1], "binaria") == 0)
+        {
+            ricerca_binaria(*db, *n, args[0], comp_fuzzy_codice_tratta);
+            return;
+        }
+
+        if (scanned == 1 || (scanned == 2 && strcmp(args[1], "lineare") == 0))
+        {
+            ricerca_lineare(*db, *n, args[0], comp_fuzzy_codice_tratta);
+            return;
+        }
+
+        printf("Argomenti non validi.\n");
         return;
     case r_cerca_partenza:
-        sscanf(cmdstr, "%*s %s", args[0]);
-        cerca_partenza(*db, n, args[0]);
+        scanned = sscanf(cmdstr, "%*s %s %s", args[0], args[1]);
+        sort(*db, *n, comp_partenza);
+
+        if (scanned == 0)
+        {
+            printf("Inserire almeno un argomento.\n");
+            return;
+        }
+
+        if (scanned == 2 && strcmp(args[1], "binaria") == 0)
+        {
+            ricerca_binaria(*db, *n, args[0], comp_fuzzy_partenza);
+            return;
+        }
+
+        if (scanned == 1 || (scanned == 2 && strcmp(args[1], "lineare") == 0))
+        {
+            ricerca_lineare(*db, *n, args[0], comp_fuzzy_partenza);
+            return;
+        }
+
+        printf("Argomenti non validi.\n");
         return;
     case r_fine:
         exit(0);
@@ -322,6 +407,8 @@ int main(int argc, char *argv[])
 
     while (1)
     {
+        printf("\n$ ");
+
         char inputstr[256];
         fgets(inputstr, sizeof(inputstr), stdin);
 
