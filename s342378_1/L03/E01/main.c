@@ -43,7 +43,7 @@ int majority(const int *a, int N)
     return -1;
 }
 
-int main(int argc, char *argv)
+int main(int argc, char *argv[])
 {
     const int vet[] = {4, 1, 2, 5, 2, 5, 2};
 
