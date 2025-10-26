@@ -7,7 +7,6 @@ typedef enum
 {
     r_none,
     r_aiuto,
-    r_apri_file,
     r_stampa_corse,
     r_sort_data,
     r_sort_tratta,
@@ -32,7 +31,6 @@ typedef struct
 void print_commands()
 {
     const char tab[] = "  ";
-    printf("%sapri_file\t\t<percorso>\n", tab);
     printf("%sstampa_corse\t\t<percorso>\n", tab);
     printf("%ssort_data\n", tab);
     printf("%ssort_tratta\n", tab);
@@ -52,8 +50,6 @@ comando_e read_command(char *str)
 {
     if (are_equal(str, "aiuto"))
         return r_aiuto;
-    if (are_equal(str, "apri_file"))
-        return r_apri_file;
     if (are_equal(str, "stampa_corse"))
         return r_stampa_corse;
     if (are_equal(str, "sort_data"))
@@ -73,7 +69,7 @@ comando_e read_command(char *str)
     return r_none;
 }
 
-corsa *load_file(char *path, int *len)
+corsa *load_file(const char *path, int *len)
 {
     FILE *fp = fopen(path, "r");
     if (fp == NULL)
@@ -310,22 +306,44 @@ void ricerca_binaria(corsa **db, int n, char *str, int (*comp_func)(corsa, char 
     print_corsa(db[found]);
 }
 
-void free_sorted_arrays(corsa **a, corsa **b, corsa **c, corsa **d)
+void load_sorted_arrays(corsa **db, int n,
+                        corsa ***db_data, corsa ***db_tratta, corsa ***db_partenza, corsa ***db_arrivo)
 {
-    if (a)
-        free(a);
-    if (b)
-        free(b);
-    if (c)
-        free(c);
-    if (d)
-        free(d);
+    // allocate pointer arrays
+    *db_data = malloc(n * sizeof(corsa *));
+    *db_tratta = malloc(n * sizeof(corsa *));
+    *db_partenza = malloc(n * sizeof(corsa *));
+    *db_arrivo = malloc(n * sizeof(corsa *));
+
+    // initialize pointer arrays to original order
+    for (int i = 0; i < n; i++)
+    {
+        (*db_data)[i] = &(*db)[i];
+        (*db_tratta)[i] = &(*db)[i];
+        (*db_partenza)[i] = &(*db)[i];
+        (*db_arrivo)[i] = &(*db)[i];
+    }
+
+    // Sorting per data e ora (stable sort: time -> date)
+    sort(*db_data, n, comp_ora_partenza);
+    sort(*db_data, n, comp_data);
+
+    // Sorting per tratta
+    sort(*db_tratta, n, comp_tratta);
+
+    // Sorting per fermata di partenza
+    sort(*db_partenza, n, comp_partenza);
+
+    // Sorting per fermata di arrivo
+    sort(*db_arrivo, n, comp_arrivo);
+
+    return;
 }
 
 void seleziona_dati(corsa **db, int *n, comando_e cmd, char *cmdstr,
                     corsa ***db_data, corsa ***db_tratta, corsa ***db_partenza, corsa ***db_arrivo)
 {
-    if (*db == NULL && cmd != r_apri_file && cmd != r_aiuto && cmd != r_fine)
+    if (*db == NULL && cmd != r_aiuto && cmd != r_fine)
     {
         printf("Nessun file aperto. Usa 'apri_file <percorso>'.\n");
         return;
@@ -341,67 +359,6 @@ void seleziona_dati(corsa **db, int *n, comando_e cmd, char *cmdstr,
         return;
     case r_aiuto:
         print_commands();
-        return;
-    case r_apri_file:
-        sscanf(cmdstr, "%*s %255s", args[0]);
-        // if a DB is already loaded, free it and the sorted arrays
-        if (*db != NULL)
-        {
-            free_sorted_arrays(*db_data ? *db_data : NULL,
-                               *db_tratta ? *db_tratta : NULL,
-                               *db_partenza ? *db_partenza : NULL,
-                               *db_arrivo ? *db_arrivo : NULL);
-            free(*db);
-            *db = NULL;
-            *n = 0;
-        }
-
-        *db = load_file(args[0], n);
-        if (*db == NULL)
-        {
-            printf("Errore nel caricamento del file %s.\n", args[0]);
-            return;
-        }
-
-        // allocate pointer arrays
-        *db_data = malloc(*n * sizeof(corsa *));
-        *db_tratta = malloc(*n * sizeof(corsa *));
-        *db_partenza = malloc(*n * sizeof(corsa *));
-        *db_arrivo = malloc(*n * sizeof(corsa *));
-
-        if (!*db_data || !*db_tratta || !*db_partenza || !*db_arrivo)
-        {
-            printf("Memory allocation failure for pointer arrays.\n");
-            free_sorted_arrays(*db_data, *db_tratta, *db_partenza, *db_arrivo);
-            free(*db);
-            *db = NULL;
-            *n = 0;
-            exit(1);
-        }
-
-        // initialize pointer arrays to original order
-        for (int i = 0; i < *n; i++)
-        {
-            (*db_data)[i] = &(*db)[i];
-            (*db_tratta)[i] = &(*db)[i];
-            (*db_partenza)[i] = &(*db)[i];
-            (*db_arrivo)[i] = &(*db)[i];
-        }
-
-        // Sorting per data e ora (stable via two sorts: time then date)
-        sort(*db_data, *n, comp_ora_partenza);
-        sort(*db_data, *n, comp_data);
-
-        // Sorting per tratta
-        sort(*db_tratta, *n, comp_tratta);
-
-        // Sorting per fermata di partenza
-        sort(*db_partenza, *n, comp_partenza);
-
-        // Sorting per fermata di arrivo
-        sort(*db_arrivo, *n, comp_arrivo);
-
-        printf("Il file %s è stato caricato correttamente (%d record).\n", args[0], *n);
         return;
     case r_stampa_corse:
         if (sscanf(cmdstr, "%*s %255s", args[0]) == 1)
@@ -474,13 +431,6 @@ void seleziona_dati(corsa **db, int *n, comando_e cmd, char *cmdstr,
         printf("Argomenti non validi.\n");
         return;
     case r_fine:
-        // free memory before exiting
-        free_sorted_arrays(*db_data ? *db_data : NULL,
-                           *db_tratta ? *db_tratta : NULL,
-                           *db_partenza ? *db_partenza : NULL,
-                           *db_arrivo ? *db_arrivo : NULL);
-        if (*db)
-            free(*db);
         exit(0);
     default:
         return;
@@ -489,6 +439,8 @@ void seleziona_dati(corsa **db, int *n, comando_e cmd, char *cmdstr,
 
 int main(int argc, char *argv[])
 {
+    const char file_path[] = "corse.txt";
+
     corsa *db = NULL;
     int dbcount = 0;
 
@@ -496,6 +448,9 @@ int main(int argc, char *argv[])
     corsa **db_tratta = NULL;
     corsa **db_partenza = NULL;
     corsa **db_arrivo = NULL;
+
+    db = load_file(file_path, &dbcount);
+    load_sorted_arrays(&db, dbcount, &db_data, &db_tratta, &db_partenza, &db_arrivo);
 
     printf("Inserisci un comando o \"aiuto\" per vedere tutti i comandi.\n");
 
@@ -518,9 +473,5 @@ int main(int argc, char *argv[])
         seleziona_dati(&db, &dbcount, cmd, inputstr, &db_data, &db_tratta, &db_partenza, &db_arrivo);
     }
 
-    // cleanup on EOF
-    free_sorted_arrays(db_data, db_tratta, db_partenza, db_arrivo);
-    if (db)
-        free(db);
     return 0;
 }
