@@ -166,6 +166,19 @@ int add_to_sorted_list(node_t **head, item_t item)
     new_node->next = tmp;
 }
 
+void add_record(node_t **head, char *record)
+{
+    item_t new_item;
+    if (parse_item(&new_item, record))
+    {
+        add_to_sorted_list(head, new_item);
+        printf("Record added successfully.");
+        return 1;
+    }
+    printf("Failed to add record.");
+    return 0;
+}
+
 int add_from_file(node_t **head, char *path)
 {
     FILE *fp = fopen(path, "r");
@@ -189,8 +202,128 @@ int add_from_file(node_t **head, char *path)
     fclose(fp);
 }
 
+int search_by_code(node_t *head, char *code)
+{
+    node_t *current = head;
+    while (current != NULL)
+    {
+        if (strcmp(current->value.codice, code) == 0)
+        {
+            print_item(current->value);
+            return 1;
+        }
+        current = current->next;
+    }
+
+    return 0;
+}
+
+int remove_code(node_t **head, char *code)
+{
+    node_t *current = *head;
+    node_t *prev = NULL;
+    while (current)
+    {
+        if (strcmp(current->value.codice, code) == 0)
+        {
+            if (prev == NULL)
+                *head = current->next;
+            else
+                prev->next = current->next;
+            free(current);
+            return 1;
+        }
+        prev = current;
+        current = current->next;
+    }
+    return 0;
+}
+
+int remove_date_range(node_t **head, char *from, char *to)
+{
+    date_t dfrom, dto;
+    if (!parse_date(&dfrom, from) || !parse_date(&dto, to))
+    {
+        printf("Invalid date range format.\n");
+        return 0;
+    }
+
+    node_t *current = *head;
+    node_t *prev = NULL;
+    int removed = 0;
+
+    while (current)
+    {
+        int cmpFrom = comp_date(current->value.data_di_nascita, dfrom);
+        int cmpTo = comp_date(current->value.data_di_nascita, dto);
+        if (cmpFrom >= 0 && cmpTo <= 0)
+        {
+            node_t *toFree = current;
+            if (prev == NULL)
+            {
+                *head = current->next;
+                current = *head;
+            }
+            else
+            {
+                prev->next = current->next;
+                current = prev->next;
+            }
+            free(toFree);
+            removed++;
+            continue;
+        }
+        prev = current;
+        current = current->next;
+    }
+
+    return removed;
+}
+
+int write_to_file(node_t *head, char *path)
+{
+    FILE *fp = fopen(path, "w");
+    if (!fp)
+    {
+        printf("Could not open file for writing: %s\n", path);
+        return 0;
+    }
+    node_t *current = head;
+    char date_str[DATE_STR_LEN];
+    while (current)
+    {
+        format_date(date_str, current->value.data_di_nascita);
+        /* CODE NOME COGNOME DD/MM/YYYY VIA CITTA CAP\n */
+        fprintf(fp, "%s %s %s %s %s %s %d\n",
+                current->value.codice,
+                current->value.nome,
+                current->value.cognome,
+                date_str,
+                current->value.via,
+                current->value.citta,
+                current->value.cap);
+        current = current->next;
+    }
+    fclose(fp);
+    return 1;
+}
+
 int main(int argc, char *argv[])
 {
+    char buffer[128];
+
+    while (1)
+    {
+        if (fgets(buffer, sizeof(buffer), stdin) != NULL)
+        {
+            printf("You entered: %s\n", buffer);
+        }
+        else
+        {
+            printf("Error or EOF.\n");
+        }
+    }
+
     node_t *head = NULL;
     char path[] = "anag1.txt";
 
