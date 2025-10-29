@@ -8,7 +8,7 @@
 
 typedef struct
 {
-    short year, month, day;
+    short day, month, year;
 } date_t;
 
 typedef struct
@@ -73,6 +73,11 @@ int parse_date(date_t *date, char *str)
     return 1;
 }
 
+void format_date(char *buffer, date_t date)
+{
+    sprintf(buffer, "%d/%d/%d", date.day, date.month, date.year);
+}
+
 int comp_date(date_t a, date_t b)
 {
     int yearDiff = a.year - b.year;
@@ -95,8 +100,16 @@ void clear_list(node_t **head)
 
 void print_item(item_t item)
 {
-    perror("Function is not implemented.");
-    exit(1);
+    char date_str[11];
+    format_date(date_str, item.data_di_nascita);
+    printf("%s %s %s %s %s %s %c\n",
+           item.codice,
+           item.nome,
+           item.cognome,
+           date_str,
+           item.via,
+           item.citta,
+           item.cap);
 }
 
 void print_list(node_t *head)
@@ -109,63 +122,48 @@ void print_list(node_t *head)
     }
 }
 
-int parse_item(item_t **item, char *str)
+int parse_item(item_t *item, char *str)
 {
-    if (*item != NULL)
-    {
-        free(*item);
-    }
-    *item = malloc(sizeof(item_t));
-    if (*item == NULL)
-    {
-        perror("Memory allocation failure.");
-        return 0;
-    }
-
     char codice_str[CODE_STR_LEN];
     char data_str[DATE_STR_LEN];
 
     int res = sscanf(str, "%5s %s %s %10s %s %s %d",
                      codice_str,
-                     (*item)->nome,
-                     (*item)->cognome,
+                     item->nome,
+                     item->cognome,
                      data_str,
-                     (*item)->via,
-                     (*item)->citta,
-                     &(*item)->cap);
+                     item->via,
+                     item->citta,
+                     &item->cap);
 
-    if (res != 7)
-    {
-        return 0;
-    }
-
-    if (!parse_code((*item)->codice, codice_str))
-    {
-        return 0;
-    }
-
-    if (!parse_date(&(*item)->data_di_nascita, data_str))
-    {
-        return 0;
-    }
-
-    return 1;
+    int err = res != 7 || !parse_code(item->codice, codice_str) || !parse_date(&item->data_di_nascita, data_str);
+    return !err;
 }
 
 int add_to_sorted_list(node_t **head, item_t item)
 {
     node_t *new_node = malloc(sizeof(node_t));
     new_node->value = item;
+    new_node->next = NULL;
 
     // Check first item
+    if (*head == NULL || comp_date(item.data_di_nascita, (*head)->value.data_di_nascita) < 0)
+    {
+        new_node->next = *head;
+        *head = new_node;
+        return 0;
+    }
 
     node_t *current = *head;
-    while (comp_date(current->value.data_di_nascita, new_node->value.data_di_nascita))
+    while (current->next != NULL && comp_date(current->next->value.data_di_nascita, item.data_di_nascita) <= 0)
     {
         current = current->next;
     }
 
     // Insert node
+    node_t *tmp = current->next;
+    current->next = new_node;
+    new_node->next = tmp;
 }
 
 int add_from_file(node_t **head, char *path)
@@ -177,15 +175,18 @@ int add_from_file(node_t **head, char *path)
         return 0;
     }
 
+    item_t new_item;
+
     char line[256];
     while (fgets(line, sizeof(line), fp))
     {
-        item_t *new_item = malloc(sizeof(item_t));
         if (parse_item(&new_item, line))
         {
-            // add_to_sorted_list();
+            add_to_sorted_list(head, new_item);
         }
     }
+
+    fclose(fp);
 }
 
 int main(int argc, char *argv[])
@@ -194,6 +195,8 @@ int main(int argc, char *argv[])
     char path[] = "anag1.txt";
 
     add_from_file(&head, path);
+
+    print_list(head);
 
     return 0;
 }
