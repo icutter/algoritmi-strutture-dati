@@ -28,6 +28,58 @@ typedef struct node
     struct node *next;
 } node_t;
 
+typedef enum
+{
+    r_add_record,
+    r_add_from_file,
+    r_search_code,
+    r_remove_code,
+    r_remove_date_range,
+    r_write_to_file,
+    r_help,
+    r_quit,
+    r_err,
+} cmd_e;
+
+int are_equal(const char *a, const char *b)
+{
+    return strcmp(a, b) == 0;
+}
+
+void print_commands()
+{
+    const char tab[] = "  ";
+    printf("%sadd_record\t\t<code> <name> <surname> <birth_date> <address> <city> <cap>\n", tab);
+    printf("%sadd_from_file\t\t<path>\n", tab);
+    printf("%ssearch_code\t\t<code>\n", tab);
+    printf("%sremove_code\t\t<code>\n", tab);
+    printf("%sremove_date_range\t<start_date> <end_date>\n", tab);
+    printf("%swrite_to_file\t\t<path>\n", tab);
+    printf("%squit\n", tab);
+}
+
+cmd_e read_command(char *str)
+{
+    if (are_equal(str, "add_record"))
+        return r_add_record;
+    if (are_equal(str, "read_from_file"))
+        return r_add_from_file;
+    if (are_equal(str, "search_code"))
+        return r_search_code;
+    if (are_equal(str, "remove_code"))
+        return r_remove_code;
+    if (are_equal(str, "sremove_date_range"))
+        return r_remove_date_range;
+    if (are_equal(str, "write_to_file"))
+        return r_write_to_file;
+    if (are_equal(str, "help"))
+        return r_help;
+    if (are_equal(str, "quit"))
+        return r_quit;
+
+    return r_err;
+}
+
 int parse_code(char *dest, char *str)
 {
     // AXXXX
@@ -166,7 +218,7 @@ int add_to_sorted_list(node_t **head, item_t item)
     new_node->next = tmp;
 }
 
-void add_record(node_t **head, char *record)
+int add_record(node_t **head, char *record)
 {
     item_t new_item;
     if (parse_item(&new_item, record))
@@ -280,6 +332,33 @@ int remove_date_range(node_t **head, char *from, char *to)
     return removed;
 }
 
+void try_command(node_t **head, cmd_e cmd, char *inputstr)
+{
+    switch (cmd)
+    {
+    case r_add_record:
+        return;
+    case r_add_from_file:
+        return;
+    case r_search_code:
+        return;
+    case r_remove_code:
+        return;
+    case r_remove_date_range:
+        return;
+    case r_write_to_file:
+        return;
+    case r_help:
+        print_commands();
+        return;
+    case r_quit:
+        exit(0);
+        return;
+    case r_err:
+        return;
+    }
+}
+
 int write_to_file(node_t *head, char *path)
 {
     FILE *fp = fopen(path, "w");
@@ -310,21 +389,33 @@ int write_to_file(node_t *head, char *path)
 
 int main(int argc, char *argv[])
 {
+    node_t *head = NULL;
+
     char buffer[128];
+
+    printf("Type a command or \"help\" to get the list of available commands.\n");
 
     while (1)
     {
-        if (fgets(buffer, sizeof(buffer), stdin) != NULL)
-        {
-            printf("You entered: %s\n", buffer);
-        }
-        else
-        {
-            printf("Error or EOF.\n");
-        }
+        printf("\n$ ");
+        char inputstr[512];
+        if (!fgets(inputstr, sizeof(inputstr), stdin))
+            break;
+
+        printf("\n");
+
+        // remove trailing newline
+        size_t L = strlen(inputstr);
+        if (L > 0 && inputstr[L - 1] == '\n')
+            inputstr[L - 1] = '\0';
+
+        char cmdstr[64] = {0};
+        sscanf(inputstr, "%63s", cmdstr);
+
+        cmd_e cmd = read_command(cmdstr);
+        try_command(&head, cmd, inputstr);
     }
 
-    node_t *head = NULL;
     char path[] = "anag1.txt";
 
     add_from_file(&head, path);
