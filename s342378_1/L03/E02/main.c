@@ -36,6 +36,7 @@ typedef enum
     r_remove_code,
     r_remove_date_range,
     r_write_to_file,
+    r_print_list,
     r_help,
     r_quit,
     r_err,
@@ -55,6 +56,7 @@ void print_commands()
     printf("%sremove_code\t\t<code>\n", tab);
     printf("%sremove_date_range\t<start_date> <end_date>\n", tab);
     printf("%swrite_to_file\t\t<path>\n", tab);
+    printf("%sprint_list\n", tab);
     printf("%squit\n", tab);
 }
 
@@ -62,16 +64,18 @@ cmd_e read_command(char *str)
 {
     if (are_equal(str, "add_record"))
         return r_add_record;
-    if (are_equal(str, "read_from_file"))
+    if (are_equal(str, "add_from_file"))
         return r_add_from_file;
     if (are_equal(str, "search_code"))
         return r_search_code;
     if (are_equal(str, "remove_code"))
         return r_remove_code;
-    if (are_equal(str, "sremove_date_range"))
+    if (are_equal(str, "remove_date_range"))
         return r_remove_date_range;
     if (are_equal(str, "write_to_file"))
         return r_write_to_file;
+    if (are_equal(str, "print_list"))
+        return r_print_list;
     if (are_equal(str, "help"))
         return r_help;
     if (are_equal(str, "quit"))
@@ -148,13 +152,14 @@ void clear_list(node_t **head)
         current = current->next;
         free(tmp);
     }
+    *head = NULL;
 }
 
 void print_item(item_t item)
 {
     char date_str[11];
     format_date(date_str, item.data_di_nascita);
-    printf("%s %s %s %s %s %s %c\n",
+    printf("%s %s %s %s %s %s %d\n",
            item.codice,
            item.nome,
            item.cognome,
@@ -216,6 +221,8 @@ int add_to_sorted_list(node_t **head, item_t item)
     node_t *tmp = current->next;
     current->next = new_node;
     new_node->next = tmp;
+
+    return 1;
 }
 
 int add_record(node_t **head, char *record)
@@ -224,10 +231,10 @@ int add_record(node_t **head, char *record)
     if (parse_item(&new_item, record))
     {
         add_to_sorted_list(head, new_item);
-        printf("Record added successfully.");
+        printf("Record added successfully.\n");
         return 1;
     }
-    printf("Failed to add record.");
+    printf("Failed to add record.\n");
     return 0;
 }
 
@@ -236,7 +243,7 @@ int add_from_file(node_t **head, char *path)
     FILE *fp = fopen(path, "r");
     if (fp == NULL)
     {
-        printf("Could not open file.");
+        printf("Could not open file.\n");
         return 0;
     }
 
@@ -252,6 +259,7 @@ int add_from_file(node_t **head, char *path)
     }
 
     fclose(fp);
+    return 1;
 }
 
 int search_by_code(node_t *head, char *code)
@@ -332,33 +340,6 @@ int remove_date_range(node_t **head, char *from, char *to)
     return removed;
 }
 
-void try_command(node_t **head, cmd_e cmd, char *inputstr)
-{
-    switch (cmd)
-    {
-    case r_add_record:
-        return;
-    case r_add_from_file:
-        return;
-    case r_search_code:
-        return;
-    case r_remove_code:
-        return;
-    case r_remove_date_range:
-        return;
-    case r_write_to_file:
-        return;
-    case r_help:
-        print_commands();
-        return;
-    case r_quit:
-        exit(0);
-        return;
-    case r_err:
-        return;
-    }
-}
-
 int write_to_file(node_t *head, char *path)
 {
     FILE *fp = fopen(path, "w");
@@ -385,6 +366,52 @@ int write_to_file(node_t *head, char *path)
     }
     fclose(fp);
     return 1;
+}
+
+void try_command(node_t **head, cmd_e cmd, char *inputstr)
+{
+    char args[2][51];
+
+    switch (cmd)
+    {
+    case r_add_record:
+        add_record(head, inputstr + strlen("add_record "));
+        return;
+    case r_add_from_file:
+        sscanf(inputstr, "%*s %50s", args[0]);
+        add_from_file(head, args[0]);
+        return;
+    case r_search_code:
+        sscanf(inputstr, "%*s %5s", args[0]);
+        search_by_code(*head, args[0]);
+        return;
+    case r_remove_code:
+        sscanf(inputstr, "%*s %5s", args[0]);
+        remove_code(head, args[0]);
+        return;
+    case r_remove_date_range:
+        sscanf(inputstr, "%*s %10s %10s", args[0], args[1]);
+        remove_date_range(head, args[0], args[1]);
+        return;
+    case r_write_to_file:
+        sscanf(inputstr, "%*s %50s", args[0]);
+        write_to_file(*head, args[0]);
+        return;
+    case r_print_list:
+        print_list(*head);
+        return;
+    case r_help:
+        print_commands();
+        return;
+    case r_quit:
+        clear_list(head);
+        exit(0);
+        return;
+    case r_err:
+        printf("Command was not recognized.\n");
+
+        return;
+    }
 }
 
 int main(int argc, char *argv[])
@@ -415,12 +442,6 @@ int main(int argc, char *argv[])
         cmd_e cmd = read_command(cmdstr);
         try_command(&head, cmd, inputstr);
     }
-
-    char path[] = "anag1.txt";
-
-    add_from_file(&head, path);
-
-    print_list(head);
 
     return 0;
 }
