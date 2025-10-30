@@ -370,6 +370,12 @@ int write_to_file(node_t *head, char *path)
 
 void try_command(node_t **head, cmd_e cmd, char *inputstr)
 {
+    if (*head == NULL && cmd != r_add_record && cmd != r_add_from_file && cmd != r_help && cmd != r_quit && cmd != r_err)
+    {
+        printf("There are no entries loaded in the database.\n");
+        return;
+    }
+
     char args[2][51];
 
     switch (cmd)
