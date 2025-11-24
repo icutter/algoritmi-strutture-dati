@@ -12,9 +12,32 @@ int get_duration(att a)
     return a.stop - a.start;
 }
 
+int maxDurata(att *V, int N, int pos, att *TEMP, int tmp)
+{
+    if (pos >= N)
+        return 0;
+
+    int max_index = -1;
+    int max_duration = 0;
+
+    for (int i = pos + 1; i < N; i++)
+    {
+
+        int cur_duration = maxDurata(V, N, i, TEMP, tmp + 1);
+        if (cur_duration > max_duration)
+        {
+            max_duration = cur_duration;
+            max_index = i;
+        }
+    }
+
+    return max_duration;
+}
+
 void attSel(int N, att *V)
 {
-    printf("attSel() function is not implemented.\n");
+    att TEMP[1000];
+    maxDurata(V, N, 0, TEMP, 0);
 }
 
 void load_from_file(char *path, att **V, int *N)
