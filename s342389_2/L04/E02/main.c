@@ -23,23 +23,24 @@ void print_songs(user_t *users, int N)
     }
 }
 
-int comb_ripet(int pos, int *val, int *sol, int n, int k, int start, int count)
+void genera_playlist(int pos, user_t *users, int N, int *sol)
 {
-    int i;
-    if (pos >= k)
+    if (pos == N)
     {
-        for (i = 0; i < k; i++)
-            printf("%d ", sol[i]);
+        // stampa una playlist completa
+        for (int i = 0; i < N; i++)
+        {
+            printf("%s ", users[i].songs[sol[i]]);
+        }
         printf("\n");
-        return count + 1;
+        return;
     }
-    for (i = start; i < n; i++)
+
+    for (int i = 0; i < users[pos].count; i++)
     {
-        sol[pos] = val[i];
-        count = comb_ripet(pos + 1, val, sol, n, k, start, count);
-        start++;
+        sol[pos] = i;
+        genera_playlist(pos + 1, users, N, sol);
     }
-    return count;
 }
 
 void load_file(char *path, user_t **arr, int *N)
@@ -74,9 +75,13 @@ int main(int argc, char *argv[])
 
     load_file("brani.txt", &user_arr, &user_count);
     print_songs(user_arr, user_count);
-    printf("\n\n");
 
-    comb_ripet(0);
+    printf("\nPlaylist possibili:\n\n");
+    int *sol = malloc(user_count * sizeof(int));
+    genera_playlist(0, user_arr, user_count, sol);
+
+    free(sol);
+    free(user_arr);
 
     return 0;
 }
