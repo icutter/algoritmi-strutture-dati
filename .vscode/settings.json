@@ -1,6 +1,7 @@
 {
     "files.associations": {
         "characters.h": "c",
-        "inventory.h": "c"
+        "inventory.h": "c",
+        "xutility": "c"
     }
 }

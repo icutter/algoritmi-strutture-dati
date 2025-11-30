@@ -22,7 +22,7 @@ typedef struct inv_t
 typedef struct tabEquip_t
 {
     int inUso;
-    inv_t *vettEq;
+    inv_t *item;
 } tabEquip_t;
 
 typedef struct tabInv_t
@@ -32,5 +32,6 @@ typedef struct tabInv_t
     int maxInv;
 } tabInv_t;
 
+extern inv_t *get_item(tabInv_t *inv, char *name);
 extern tabInv_t *load_inventory_file(char *path);
 extern void print_inventory_item(tabInv_t *obj, char *name);

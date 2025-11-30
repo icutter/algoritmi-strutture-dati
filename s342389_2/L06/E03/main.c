@@ -16,6 +16,8 @@ typedef enum
     r_pg_remove,
     r_pg_print,
 
+    r_inv_add,
+    r_inv_remove,
     r_inv_print,
 
     r_help,
@@ -25,9 +27,11 @@ typedef enum
 void print_commands()
 {
     const char tab[] = "  ";
-    printf("%spg_add\t<code> <name> etc. etc.\n", tab); // TODO: Add character
+    printf("%spg_add\t<code> <name> <class> <hp> <mp> <atk> <def> <mag> <spr>\n", tab); // TODO: Add character
     printf("%spg_remove\t<code>\n", tab);
     printf("%spg_print\t<code>\n", tab);
+    printf("%sinv_add\t<pg_code> <item_name>\n", tab);
+    printf("%sinv_remove\t<pg_code> <item_name>\n", tab);
     printf("%sinv_print\t<name>\n", tab);
     printf("%squit\n\n", tab);
 }
@@ -46,6 +50,10 @@ comando_e read_command(char *str)
     if (are_equal(str, "pg_print"))
         return r_pg_print;
 
+    if (are_equal(str, "inv_add"))
+        return r_inv_add;
+    if (are_equal(str, "inv_remove"))
+        return r_inv_remove;
     if (are_equal(str, "inv_print"))
         return r_inv_print;
 
@@ -79,9 +87,17 @@ void seleziona_dati(tabPg_t *tabPg, tabInv_t *tabInv, comando_e cmd, char *cmdst
         return;
     case r_pg_print:
         sscanf(cmdstr, "%*s %255s", args[0]);
-        print_character(tabPg, args[0]);
+        print_character(get_character(tabPg, args[0]), tabInv);
         return;
 
+    case r_inv_add:
+        sscanf(cmdstr, "%*s %255s %255s", args[0], args[1]);
+        add_item(get_character(tabPg, args[0]), tabInv, args[1]);
+        return;
+    case r_inv_remove:
+        sscanf(cmdstr, "%*s %255s %255s", args[0], args[1]);
+        remove_item(get_character(tabPg, args[0]), args[1]);
+        return;
     case r_inv_print:
         sscanf(cmdstr, "%*s %255s", args[0]);
         print_inventory_item(tabInv, args[0]);
